@@ -1,7 +1,6 @@
 import psycopg2
 
 try:
-    # Устанавливаем соединение с базой данных
     conn = psycopg2.connect(
         host="80.90.185.102",
         database="default_db",
