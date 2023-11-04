@@ -14,7 +14,6 @@ bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 @bot.message_handler(commands=['metrics'])
 def send_metrics(message):
     try:
-        # Подключение к базе данных PostgreSQL
         connection = psycopg2.connect(
             host=POSTGRES_DB_HOST,
             database=POSTGRES_DB_NAME,
@@ -22,8 +21,6 @@ def send_metrics(message):
             password=POSTGRES_DB_PASSWORD
         )
         cursor = connection.cursor()
-
-        # Запросы к базе данных для получения метрик
         cursor.execute("SELECT max(now() - pg_stat_activity.query_start) FROM pg_stat_activity;")
         longest_transaction_duration = cursor.fetchone()[0]
 
@@ -32,12 +29,10 @@ def send_metrics(message):
 
         cursor.execute("SELECT count(*) FROM pg_stat_activity WHERE wait_event IS NOT NULL;")
         sessions_with_lwlock_count = cursor.fetchone()[0]
-
-        # Получение метрик системы
+        
         disk_free_space_gb = disk_free_space / (1024 ** 3)
         cpu_load = psutil.cpu_percent(interval=1)
 
-        # Отправка сообщения с метриками в Telegram
         metrics_message = f"Продолжительность самой долгой транзакции: {longest_transaction_duration_ms} ms\n" \
                                 f"Количество активных сессий: {active_sessions_count}\n" \
                                 f"Количество сессий со значением LWLock в колонке wait_event: {sessions_with_lwlock_count}\n" \
@@ -45,15 +40,12 @@ def send_metrics(message):
                                 f"Загруженность процессора: {cpu_load}%"
         bot.send_message(message.chat.id, metrics_message)
 
-        # Закрытие соединения с базой данных
         cursor.close()
         connection.close()
 
     except psycopg2.Error as e:
-        # Обработка ошибок при работе с базой данных
         bot.send_message(message.chat.id, f"Ошибка при работе с базой данных: {e}")
     except Exception as e:
-        # Обработка других ошибок
         bot.send_message(message.chat.id, f"Произошла ошибка: {e}")
 
 bot.polling()
