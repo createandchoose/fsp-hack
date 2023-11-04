@@ -15,10 +15,10 @@ def ssh_connect(host, port, username, password):
     finally:
         client.close()
 
-host = 'ваш_ip_адрес_сервера'
-port = 22  # порт SSH
-username = 'ваше_имя_пользователя'
-password = 'ваш_пароль'
+host = '94.228.123.59'
+port = 22
+username = 'root'
+password = 'hicU?BnqfUAy64'
 
 if ssh_connect(host, port, username, password):
     print("Подключение успешно установлено!")
