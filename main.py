@@ -2,6 +2,7 @@ import telebot
 from telebot import types
 import sql_query
 import re
+import psycopg2
 
 sq = sql_query.QueryTool()
 
@@ -99,11 +100,10 @@ def main_menu(call):
     markup = types.InlineKeyboardMarkup()
     
     
-    btn1 = types.InlineKeyboardButton('Просмотр базы данных', callback_data='reg_mm')
-    btn2 = types.InlineKeyboardButton(' ', callback_data='bk_mm')
-    btn3 = types.InlineKeyboardButton(' ', callback_data='ch_mm')
-    btn4 = types.InlineKeyboardButton(' ', callback_data='ord_mm')
-    
+    btn1 = types.InlineKeyboardButton('', callback_data='reg_mm')
+    btn2 = types.InlineKeyboardButton('Просмотр базы данных', callback_data='bk_mm')
+    btn3 = types.InlineKeyboardButton('', callback_data='ch_mm')
+    btn4 = types.InlineKeyboardButton('', callback_data='ord_mm')
     
     
     btn5 = types.InlineKeyboardButton('Завершить работу', callback_data='end_mm')
@@ -121,6 +121,44 @@ def main_menu(call):
                          mm_mes,
                          reply_markup=markup,
                          parse_mode='Markdown')
+
+# ========================================= Просмотр базы данных =========================================
+
+db_params = {
+    "host": "80.90.185.102",
+    "database": "default_db",
+    "user": "admin",
+    "password": "fsphack1"
+}
+connection = psycopg2.connect(**db_params)
+cursor = connection.cursor()
+query = "SELECT datname FROM pg_database WHERE datistemplate = false;"
+cursor.execute(query)
+databases = cursor.fetchall()
+cursor.close()
+connection.close()
+
+@bot.callback_query_handler(func=lambda callback: callback.data.startswith('bk') and logged_in)
+def bk_handler(call):
+    print("Callback handler called!")  # Проверка, был ли обработчик вызван
+    global to_switch
+    if call.data == 'bk_mm':
+        markup = types.InlineKeyboardMarkup()
+
+        # Добавление каждой базы данных в отдельную кнопку
+        for db in databases:
+            db_name = db[0]
+            btn = types.InlineKeyboardButton(db_name, callback_data=f'db_{db_name}')
+            markup.add(btn)
+
+        # Кнопка "Назад"
+        back_btn = types.InlineKeyboardButton('<< Назад', callback_data='main_menu')
+        markup.add(back_btn)
+
+        # Отправка сообщения с клавиатурой
+        bot.send_message(call.message.chat.id, 'Выберите базу данных:', reply_markup=markup)
+        
+
 
 # ========================================= Func4All =========================================
 
