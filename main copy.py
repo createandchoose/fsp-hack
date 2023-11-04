@@ -4,10 +4,6 @@ import sql_query
 import re
 import psycopg2
 
-import subprocess
-import psutil
-
-
 sq = sql_query.QueryTool()
 
 auto_log = 'admin'
@@ -110,7 +106,7 @@ def main_menu(call):
     btn4 = types.InlineKeyboardButton('', callback_data='ord_mm')
     
     
-    btn5 = types.InlineKeyboardButton('Выйти из системы', callback_data='end_mm')
+    btn5 = types.InlineKeyboardButton('Завершить работу', callback_data='end_mm')
     markup.row(btn1, btn2).row(btn3, btn4).row(btn5)
     mm_mes = '*Главное меню*\n\nВыберите необходимый раздел.'
     if type(call) is types.CallbackQuery:
@@ -200,92 +196,22 @@ def bk_handler(call):
         bot.send_message(call.message.chat.id, 'Выберите базу данных:', reply_markup=markup)
         
 
-
-# =========================================> ВНУТРИ БАЗЫ ДАННЫХ 
+def get_table_count(db_name):
+    connection = psycopg2.connect(**db_params)
+    cursor = connection.cursor()
+    query = f"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_catalog = '{db_name}';"
+    cursor.execute(query)
+    count = cursor.fetchone()[0]
+    cursor.close()
+    connection.close()
+    return count
 
 @bot.callback_query_handler(func=lambda callback: callback.data.startswith('db_') and logged_in)
 def db_handler(call):
-    print("Callback handler called!")  # Проверка, был ли обработчик вызван
+    print("Database handler calleыыыыыыыыыыыыыыыd!")
     db_name = call.data.split('_')[1]
-    markup = types.InlineKeyboardMarkup()
-
-    # Кнопка "Метрика"
-    metrics_btn = types.InlineKeyboardButton('📊 Метрика', callback_data=f'metrics_{db_name}')
-    markup.add(metrics_btn)
-
-    # Кнопка "Восстановить базу"
-    restore_btn = types.InlineKeyboardButton('Восстановить базу', callback_data=f'restore_{db_name}')
-    markup.add(restore_btn)
-
-    # Кнопка "Таймлайн"
-    timeline_btn = types.InlineKeyboardButton('Таймлайн', callback_data=f'timeline_{db_name}')
-    markup.add(timeline_btn)
-
-    # Кнопка "Назад"
-    back_btn = types.InlineKeyboardButton('<< Назад', callback_data='bk_mm')
-    markup.add(back_btn)
-
-    # Отправка сообщения с клавиатурой
-    bot.send_message(call.message.chat.id, f'Выбрана база данных: {db_name}', reply_markup=markup)
-
-@bot.callback_query_handler(func=lambda callback: callback.data.startswith('metrics_') and logged_in)
-def metrics_handler(call):
-    db_name = call.data.split('_')[1]
-    try:
-        # Code to collect metrics
-        # Perform necessary queries and calculations here to collect metrics
-        # For example:
-        # - Perform queries to collect metrics from the database
-        # - Calculate the metrics based on the query results
-        # - Handle errors if any occur during metric collection
-
-        # For demonstration purposes, let's assume metrics are collected successfully
-        duration_longest_transaction = 100  # Placeholder value for the duration of the longest transaction
-        active_sessions = 10  # Placeholder value for the number of active sessions
-        sessions_with_lwlock = 5  # Placeholder value for the number of sessions with LWLock in wait_event
-        disk_free_space = psutil.disk_usage('/').free  # Get free disk space in bytes
-        cpu_load = psutil.cpu_percent(interval=1)  # Get CPU load in percentage
-
-        message = f"📊 Метрики для базы данных: {db_name}\n"
-        message += f"🕒 Продолжительность самой долгой транзакции: {duration_longest_transaction} ms\n"
-        message += f"👥 Количество активных сессий: {active_sessions}\n"
-        message += f"🔒 Количество сессий LWLock в колонке wait_event: {sessions_with_lwlock}\n"
-        message += f"💽 Объём свободного места на диске: {disk_free_space} bytes\n"
-        message += f"🔥 Загруженность процессора: {cpu_load}%"
-
-        bot.send_message(call.message.chat.id, message)
-    except Exception as e:
-        error_message = "Произошла ошибка при сборе метрик: "
-        if "timeout" in str(e):
-            error_message += "timeout (не удалось вычислить метрику за некоторое время)"
-        elif "no connection" in str(e):
-            error_message += "no connection (база данных не отвечает)"
-        else:
-            error_message += "internal error (прочие ошибки)"
-        bot.send_message(call.message.chat.id, error_message)
-
-@bot.callback_query_handler(func=lambda callback: callback.data.startswith('restore_') and logged_in)
-def restore_handler(call):
-    db_name = call.data.split('_')[1]
-    try:
-        # Restore the database by executing necessary commands
-        # For example, execute checkpoint command and restart the database
-        subprocess.run(["pg_ctl", "restart", "-D", f"/path/to/database/{db_name}"])
-        bot.send_message(call.message.chat.id, f"База данных {db_name} восстановлена успешно.")
-    except Exception as e:
-        bot.send_message(call.message.chat.id, f"Произошла ошибка при восстановлении базы данных: {str(e)}")
-
-@bot.callback_query_handler(func=lambda callback: callback.data.startswith('timeline_') and logged_in)
-def timeline_handler(call):
-    db_name = call.data.split('_')[1]
-    try:
-        # Code to provide additional information about timeline
-        # Fetch and provide the required timeline information
-        # For example, fetch historical metrics data, analyze changes, and provide the information
-        timeline_info = "Дополнительная информация о таймлайне будет предоставлена позже."
-        bot.send_message(call.message.chat.id, timeline_info)
-    except Exception as e:
-        bot.send_message(call.message.chat.id, f"Произошла ошибка при получении информации о таймлайне: {str(e)}")
+    table_count = get_table_count(db_name)
+    bot.send_message(call.message.chat.id, f'Количество таблиц в базе данных {db_name}: {table_count}')
 
 
 # ========================================= Func4All =========================================
@@ -309,13 +235,15 @@ def divide_str(text):
     else:
         return None
 
+
+
 # ========================================= End =========================================
 
 @bot.message_handler(commands=['exit'], func=lambda call: logged_in)
 @bot.callback_query_handler(func=lambda callback: callback.data == 'end_mm' and logged_in)
 def end_handler(call):
     global logged_in
-    end_mes = '*Вы вышли из системы.*\n\nХорошо поработали сегодня! Соединение с базой данных было успешно разорвано. До новых встреч.'
+    end_mes = '*Завершение работы.*\n\nХорошо поработали сегодня! Соединение с базой данных было успешно разорвано. До новых встреч.'
     if type(call) is types.CallbackQuery:
         bot.edit_message_text(
             chat_id=call.from_user.id,
