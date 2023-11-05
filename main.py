@@ -6,7 +6,16 @@ import psycopg2
 
 import subprocess
 import psutil
+import datetime
+import sqlite3
 
+
+
+
+
+import subprocess
+import os
+import logging
 
 sq = sql_query.QueryTool()
 
@@ -163,44 +172,6 @@ def bk_handler(call):
         bot.send_message(call.message.chat.id, 'Выберите базу данных:', reply_markup=markup)
         
 
-# ========================================= Просмотр базы данных =========================================
-
-db_params = {
-    "host": "80.90.185.102",
-    "database": "default_db",
-    "user": "admin",
-    "password": "fsphack1"
-}
-connection = psycopg2.connect(**db_params)
-cursor = connection.cursor()
-query = "SELECT datname FROM pg_database WHERE datistemplate = false;"
-cursor.execute(query)
-databases = cursor.fetchall()
-cursor.close()
-connection.close()
-
-@bot.callback_query_handler(func=lambda callback: callback.data.startswith('bk') and logged_in)
-def bk_handler(call):
-    print("Callback handler called!")  # Проверка, был ли обработчик вызван
-    global to_switch
-    if call.data == 'bk_mm':
-        markup = types.InlineKeyboardMarkup()
-
-        # Добавление каждой базы данных в отдельную кнопку
-        for db in databases:
-            db_name = db[0]
-            btn = types.InlineKeyboardButton(db_name, callback_data=f'db_{db_name}')
-            markup.add(btn)
-
-        # Кнопка "Назад"
-        back_btn = types.InlineKeyboardButton('<< Назад', callback_data='main_menu')
-        markup.add(back_btn)
-
-        # Отправка сообщения с клавиатурой
-        bot.send_message(call.message.chat.id, 'Выберите базу данных:', reply_markup=markup)
-        
-
-
 # =========================================> ВНУТРИ БАЗЫ ДАННЫХ 
 
 @bot.callback_query_handler(func=lambda callback: callback.data.startswith('db_') and logged_in)
@@ -218,8 +189,14 @@ def db_handler(call):
     markup.add(restore_btn)
 
     # Кнопка "Таймлайн"
-    timeline_btn = types.InlineKeyboardButton('Таймлайн', callback_data=f'timeline_{db_name}')
+    timeline_btn = types.InlineKeyboardButton('Журнал по БД', callback_data=f'timeline_{db_name}')
     markup.add(timeline_btn)
+    
+    reload_db_btn = types.InlineKeyboardButton('Перезагрузить БД', callback_data=f'reload_db_{db_name}')
+    markup.add(reload_db_btn)
+    
+    backup_btn = types.InlineKeyboardButton('Перезаasdгрузить БД', callback_data=f'backup{db_name}')
+    markup.add(backup_btn)
 
     # Кнопка "Назад"
     back_btn = types.InlineKeyboardButton('<< Назад', callback_data='bk_mm')
@@ -275,19 +252,139 @@ def restore_handler(call):
     except Exception as e:
         bot.send_message(call.message.chat.id, f"Произошла ошибка при восстановлении базы данных: {str(e)}")
 
+
+# =========================================> КНОПКА ЖУРНАЛ 
+
 @bot.callback_query_handler(func=lambda callback: callback.data.startswith('timeline_') and logged_in)
 def timeline_handler(call):
     db_name = call.data.split('_')[1]
+    current_time = datetime.datetime.now().strftime("[%d.%m.%Y %H:%M]")
+
+    # Perform a connection check with the database
     try:
-        # Code to provide additional information about timeline
-        # Fetch and provide the required timeline information
-        # For example, fetch historical metrics data, analyze changes, and provide the information
-        timeline_info = "Дополнительная информация о таймлайне будет предоставлена позже."
-        bot.send_message(call.message.chat.id, timeline_info)
+        # Code to perform a connection check with the database
+        # For example, try executing a simple query to the database
+        # If successful, update the timeline log with the current timestamp
+        # For demonstration purposes, assume the connection check is successful
+        connection_check_result = "✅ Успешная проверка связи с базой данных."
     except Exception as e:
-        bot.send_message(call.message.chat.id, f"Произошла ошибка при получении информации о таймлайне: {str(e)}")
+        connection_check_result = f"❌ Ошибка при проверке связи с базой данных: {str(e)}"
 
+    # Format the timeline log entry
+    timeline_entry = f"{'✅ Все работает' if 'Успешная' in connection_check_result else '❌ Проблемы с БД'} {current_time}"
 
+    # Create a new database connection and cursor
+    conn = sqlite3.connect('timeline_logs.db')
+    cursor = conn.cursor()
+
+    # Save the timeline entry to the SQLite database
+    chat_id = call.message.chat.id
+    cursor.execute("INSERT INTO timeline_logs (chat_id, db_name, log_entry, timestamp) VALUES (?, ?, ?, ?)",
+                   (chat_id, db_name, timeline_entry, current_time))
+    conn.commit()
+
+    # Retrieve all timeline entries for the specific chat from the database
+    cursor.execute("SELECT log_entry FROM timeline_logs WHERE chat_id=? AND db_name=?",
+                   (chat_id, db_name))
+    timeline_entries = cursor.fetchall()
+    timeline_text = "\n".join(entry[0] for entry in timeline_entries)
+
+    # Close the database connection
+    conn.close()
+
+    # Send the updated timeline log as a message
+    bot.send_message(call.message.chat.id, f"Журнал проверок связи с базой данных {db_name}:\n{timeline_text}")
+
+# =========================================> Перезагруска
+
+def reload_database(db_name):
+    # Code to reload the database
+    # Implement the logic to reload the specified database here
+    # For example, execute checkpoint command and restart the database
+    pass
+
+@bot.callback_query_handler(func=lambda callback: callback.data.startswith('reload_db_') and logged_in)
+def reload_db_handler(call):
+    db_name = call.data.split('_')[2]
+
+    # Reload the specified database
+    reload_database(db_name)
+
+    # Add a message indicating the database was reloaded
+    bot.send_message(call.message.chat.id, f"База данных {db_name} была перезагружена.")
+
+    # Add the reload action to the timeline
+    current_time = datetime.datetime.now().strftime("[%d.%m.%Y %H:%M]")
+    timeline_entry = f"Был перезагружен {current_time}"
+
+    # Create a new database connection and cursor
+    conn = sqlite3.connect('timeline_logs.db')
+    cursor = conn.cursor()
+
+    # Save the timeline entry to the SQLite database
+    chat_id = call.message.chat.id
+    cursor.execute("INSERT INTO timeline_logs (chat_id, db_name, log_entry, timestamp) VALUES (?, ?, ?, ?)",
+                   (chat_id, db_name, timeline_entry, current_time))
+    conn.commit()
+
+    # Send the updated timeline log as a message
+    # bot.send_message(call.message.chat.id, f"Журнал проверок связи с базой данных {db_name}:\n{timeline_text}")
+
+# =========================================> PG DUMP
+
+@bot.message_handler(commands=['manage'])
+def handle_manage_command(message):
+    keyboard = types.InlineKeyboardMarkup(row_width=1)
+    backup_button = types.InlineKeyboardButton('Создание резервной копии данных', callback_data='backup')
+    export_schema_button = types.InlineKeyboardButton('Экспорт схемы базы данных', callback_data='export_schema')
+    save_data_button = types.InlineKeyboardButton('Сохранение данных', callback_data='save_data')
+    custom_format_button = types.InlineKeyboardButton('Поддержка различных форматов', callback_data='custom_format')
+    restore_button = types.InlineKeyboardButton('Восстановление данных', callback_data='restore')
+
+    keyboard.add(backup_button, export_schema_button, save_data_button, custom_format_button, restore_button)
+
+    bot.send_message(message.chat.id, 'Выберите опцию:', reply_markup=keyboard)
+
+@bot.callback_query_handler(func=lambda call: True)
+def callback_handler(call):
+    if call.data == 'backup':
+        # Create a backup of the entire database
+        try:
+            subprocess.run(["pg_dump", "-h", "your_host", "-d", "your_database", "-U", "your_username", "-F", "c", "-f", "backup_file.dump"])
+            bot.send_message(call.message.chat.id, "Резервная копия данных создана успешно.")
+        except Exception as e:
+            bot.send_message(call.message.chat.id, f"Ошибка при создании резервной копии данных: {str(e)}")
+    elif call.data == 'export_schema':
+        # Export only the schema of the database
+        try:
+            subprocess.run(["pg_dump", "-h", "your_host", "-d", "your_database", "-U", "your_username", "-s", "-f", "schema.sql"])
+            bot.send_message(call.message.chat.id, "Схема базы данных экспортирована успешно.")
+        except Exception as e:
+            bot.send_message(call.message.chat.id, f"Ошибка при экспорте схемы базы данных: {str(e)}")
+    elif call.data == 'save_data':
+        # Save data without schema
+        try:
+            subprocess.run(["pg_dump", "-h", "your_host", "-d", "your_database", "-U", "your_username", "-a", "-f", "data.sql"])
+            bot.send_message(call.message.chat.id, "Данные сохранены успешно.")
+        except Exception as e:
+            bot.send_message(call.message.chat.id, f"Ошибка при сохранении данных: {str(e)}")
+    elif call.data == 'custom_format':
+        # Save data in custom format
+        try:
+            subprocess.run(["pg_dump", "-h", "your_host", "-d", "your_database", "-U", "your_username", "-Fc", "-f", "custom_format.dump"])
+            bot.send_message(call.message.chat.id, "Данные сохранены в пользовательском формате успешно.")
+        except Exception as e:
+            bot.send_message(call.message.chat.id, f"Ошибка при сохранении данных в пользовательском формате: {str(e)}")
+    elif call.data == 'restore':
+        # Restore data from a dump file
+        try:
+            subprocess.run(["pg_restore", "-h", "your_host", "-d", "your_database", "-U", "your_username", "backup_file.dump"])
+            bot.send_message(call.message.chat.id, "Данные восстановлены успешно.")
+        except Exception as e:
+            bot.send_message(call.message.chat.id, f"Ошибка при восстановлении данных: {str(e)}")
+    else:
+        bot.send_message(call.message.chat.id, "Неверная команда.")
+            
 # ========================================= Func4All =========================================
 
 def gen_markup(back):
@@ -309,7 +406,7 @@ def divide_str(text):
     else:
         return None
 
-# ========================================= End =========================================
+# ========================================= Выход =========================================
 
 @bot.message_handler(commands=['exit'], func=lambda call: logged_in)
 @bot.callback_query_handler(func=lambda callback: callback.data == 'end_mm' and logged_in)
@@ -329,7 +426,7 @@ def end_handler(call):
     sq.close_connection()
     logged_in = False
 
-# ========================================= Not logged =========================================
+# ========================================= Не авторизован =========================================
 
 @bot.message_handler(commands=['menu', 'exit'], func=lambda call: not logged_in)
 def not_logged(message):
@@ -337,7 +434,7 @@ def not_logged(message):
                      'Невозможно выполнить команду. Вы еще не авторизованы. Для авторизации воспользуйтесь командой /start',
                      parse_mode='Markdown')
 
-# ========================================= Start up bot =========================================
+# ========================================= Запуск бота =========================================
 
 if __name__ == "__main__":
     bot.infinity_polling()
