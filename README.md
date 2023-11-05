@@ -3,15 +3,17 @@
 ## Ссылки
 * [Ссылки на бота](https://t.me/smart_monitoring_fsp_bot)
 
-# **Команда**
+## 🖥️ Команда
 
-| Имя             | Фамилия       | Изображение             |
-|------------------|--------------|-------------------------|
-| Айсен           | Слепцов      | ![Айсен](link_to_image) |
-| Эрхан            | Семенов      | ![Эрхан](link_to_image) |
-| Владимир          | Афанасьев Владимир      | ![Алексей](link_to_image) |
-| Максим         | Харитонов    | ![Максим](link_to_image) |
-| Айтал           | Попов        | ![Айтал](link_to_image) |
+<table align="center">
+  <tr>
+    <td align="center"><a href="https://github.com/Foxs-m"><img src="https://avatars.githubusercontent.com/u/91510758?v=4" width="100px;" alt=""/><br /><sub><b>Айсен Слепцов</b></sub></a><br />🧑‍💻Manager</td>
+    <td align="center"><a href="https://github.com"><img src="https://avatars.githubusercontent.com/u/4111118?v=4" width="100px;" alt=""/><br /><sub><b>Эрхан Семенов</b></sub></a><br />🎴Design</td>
+    <td align="center"><a href="https://github.com/ArtemBoytunov"><img src="https://avatars.githubusercontent.com/u/64827737?v=4" width="100px;" alt="이미지"/><br /><sub><b>Владимир Афанасьев</b></sub></a><br />🔥Сисадмин</td>
+    <td align="center"><a href="https://github.com/createandchoose"><img src="https://avatars.githubusercontent.com/u/42153584?v=4" width="100px;" alt="이미지"/><br /><sub><b>Максим Харитонов</b></sub></a><br />🧑‍💻Developer</td>
+    <td align="center"><a href="https://github.com/createandchoose"><img src="https://avatars.githubusercontent.com/u/42153584?v=4" width="100px;" alt="이미지"/><br /><sub><b>Айтал Попов</b></sub></a><br />🦄FullStack-Developer</td>
+  </tr>
+</table>
 
 # **Документация к Telegram-боту для работы с базой данных**
 
@@ -73,4 +75,3 @@
 
 ---
 
-Это базовая документация, которую можно расширить и адаптировать под конкретные потребности пользователей.

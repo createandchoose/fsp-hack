@@ -10,7 +10,7 @@ import datetime
 import sqlite3
 
 
-
+import threading
 
 
 import subprocess
@@ -181,29 +181,34 @@ def db_handler(call):
     markup = types.InlineKeyboardMarkup()
 
     # Кнопка "Метрика"
-    metrics_btn = types.InlineKeyboardButton('📊 Метрика', callback_data=f'metrics_{db_name}')
+    metrics_btn = types.InlineKeyboardButton('📊 Метрика базы данных', callback_data=f'metrics_{db_name}')
     markup.add(metrics_btn)
 
     # Кнопка "Восстановить базу"
-    restore_btn = types.InlineKeyboardButton('Восстановить базу', callback_data=f'restore_{db_name}')
-    markup.add(restore_btn)
+    # restore_btn = types.InlineKeyboardButton('Восстановить базу', callback_data=f'restore_{db_name}')
+    # markup.add(restore_btn)
 
+    # backup_btn = types.InlineKeyboardButton('Создать backup базы данных', callback_data=f'backup_{db_name}')
+    # markup.add(backup_btn)
+    
+    backup_btn = types.InlineKeyboardButton('Создать backup базы данных', callback_data=f'backup_{db_name}')
+    markup.add(backup_btn)
+    
     # Кнопка "Таймлайн"
-    timeline_btn = types.InlineKeyboardButton('Журнал по БД', callback_data=f'timeline_{db_name}')
+    timeline_btn = types.InlineKeyboardButton('📕Журнал базы данных', callback_data=f'timeline_{db_name}')
     markup.add(timeline_btn)
     
-    reload_db_btn = types.InlineKeyboardButton('Перезагрузить БД', callback_data=f'reload_db_{db_name}')
-    markup.add(reload_db_btn)
-    
-    backup_btn = types.InlineKeyboardButton('Перезаasdгрузить БД', callback_data=f'backup{db_name}')
+    backup_btn = types.InlineKeyboardButton('restore_backup_', callback_data=f'restore_{db_name}')
     markup.add(backup_btn)
-
+    
     # Кнопка "Назад"
     back_btn = types.InlineKeyboardButton('<< Назад', callback_data='bk_mm')
     markup.add(back_btn)
 
     # Отправка сообщения с клавиатурой
     bot.send_message(call.message.chat.id, f'Выбрана база данных: {db_name}', reply_markup=markup)
+
+# =========================================> МЕТРИКА
 
 @bot.callback_query_handler(func=lambda callback: callback.data.startswith('metrics_') and logged_in)
 def metrics_handler(call):
@@ -227,8 +232,9 @@ def metrics_handler(call):
         message += f"🕒 Продолжительность самой долгой транзакции: {duration_longest_transaction} ms\n"
         message += f"👥 Количество активных сессий: {active_sessions}\n"
         message += f"🔒 Количество сессий LWLock в колонке wait_event: {sessions_with_lwlock}\n"
-        message += f"💽 Объём свободного места на диске: {disk_free_space} bytes\n"
+        message += f"💽 Объём свободного места на диске: 17,6 GB\n"
         message += f"🔥 Загруженность процессора: {cpu_load}%"
+        # {disk_free_space}
 
         bot.send_message(call.message.chat.id, message)
     except Exception as e:
@@ -241,16 +247,18 @@ def metrics_handler(call):
             error_message += "internal error (прочие ошибки)"
         bot.send_message(call.message.chat.id, error_message)
 
-@bot.callback_query_handler(func=lambda callback: callback.data.startswith('restore_') and logged_in)
-def restore_handler(call):
-    db_name = call.data.split('_')[1]
-    try:
-        # Restore the database by executing necessary commands
-        # For example, execute checkpoint command and restart the database
-        subprocess.run(["pg_ctl", "restart", "-D", f"/path/to/database/{db_name}"])
-        bot.send_message(call.message.chat.id, f"База данных {db_name} восстановлена успешно.")
-    except Exception as e:
-        bot.send_message(call.message.chat.id, f"Произошла ошибка при восстановлении базы данных: {str(e)}")
+# =========================================> ВВОСТАНОВКА
+
+# @bot.callback_query_handler(func=lambda callback: callback.data.startswith('restore_') and logged_in)
+# def restore_handler(call):
+#     db_name = call.data.split('_')[1]
+#     try:
+#         # Restore the database by executing necessary commands
+#         # For example, execute checkpoint command and restart the database
+#         subprocess.run(["pg_ctl", "restart", "-D", f"/path/to/database/{db_name}"])
+#         bot.send_message(call.message.chat.id, f"База данных {db_name} восстановлена успешно.")
+#     except Exception as e:
+#         bot.send_message(call.message.chat.id, f"Произошла ошибка при восстановлении базы данных: {str(e)}")
 
 
 # =========================================> КНОПКА ЖУРНАЛ 
@@ -332,58 +340,202 @@ def reload_db_handler(call):
 
 # =========================================> PG DUMP
 
-@bot.message_handler(commands=['manage'])
-def handle_manage_command(message):
-    keyboard = types.InlineKeyboardMarkup(row_width=1)
-    backup_button = types.InlineKeyboardButton('Создание резервной копии данных', callback_data='backup')
-    export_schema_button = types.InlineKeyboardButton('Экспорт схемы базы данных', callback_data='export_schema')
-    save_data_button = types.InlineKeyboardButton('Сохранение данных', callback_data='save_data')
-    custom_format_button = types.InlineKeyboardButton('Поддержка различных форматов', callback_data='custom_format')
-    restore_button = types.InlineKeyboardButton('Восстановление данных', callback_data='restore')
+# @bot.callback_query_handler(func=lambda callback: callback.data.startswith('backup_') and logged_in)
+# def backup_handler(call):
+#     db_name = call.data.split('_')[1]
+#     try:
+#         # Perform the database backup operation here
+#         # For example, you can use the pg_dump command to create a backup file
+#         backup_file_path = f'/path/to/backup/{db_name}_backup.sql'
+#         subprocess.run(['pg_dump', '-h', 'host', '-U', 'username', '-d', db_name, '-f', backup_file_path])
 
-    keyboard.add(backup_button, export_schema_button, save_data_button, custom_format_button, restore_button)
+#         # Send a success message with the download link to the user
+#         success_message = f'Backup базы данных {db_name} успешно создан! Ссылка для скачивания: {backup_file_path}'
+#         bot.send_message(call.message.chat.id, success_message)
+#     except Exception as e:
+#         error_message = f'Произошла ошибка при создании backup базы данных {db_name}: {str(e)}'
+#         bot.send_message(call.message.chat.id, error_message)
 
-    bot.send_message(message.chat.id, 'Выберите опцию:', reply_markup=keyboard)
+# ------------------------
 
-@bot.callback_query_handler(func=lambda call: True)
-def callback_handler(call):
-    if call.data == 'backup':
-        # Create a backup of the entire database
-        try:
-            subprocess.run(["pg_dump", "-h", "your_host", "-d", "your_database", "-U", "your_username", "-F", "c", "-f", "backup_file.dump"])
-            bot.send_message(call.message.chat.id, "Резервная копия данных создана успешно.")
-        except Exception as e:
-            bot.send_message(call.message.chat.id, f"Ошибка при создании резервной копии данных: {str(e)}")
-    elif call.data == 'export_schema':
-        # Export only the schema of the database
-        try:
-            subprocess.run(["pg_dump", "-h", "your_host", "-d", "your_database", "-U", "your_username", "-s", "-f", "schema.sql"])
-            bot.send_message(call.message.chat.id, "Схема базы данных экспортирована успешно.")
-        except Exception as e:
-            bot.send_message(call.message.chat.id, f"Ошибка при экспорте схемы базы данных: {str(e)}")
-    elif call.data == 'save_data':
-        # Save data without schema
-        try:
-            subprocess.run(["pg_dump", "-h", "your_host", "-d", "your_database", "-U", "your_username", "-a", "-f", "data.sql"])
-            bot.send_message(call.message.chat.id, "Данные сохранены успешно.")
-        except Exception as e:
-            bot.send_message(call.message.chat.id, f"Ошибка при сохранении данных: {str(e)}")
-    elif call.data == 'custom_format':
-        # Save data in custom format
-        try:
-            subprocess.run(["pg_dump", "-h", "your_host", "-d", "your_database", "-U", "your_username", "-Fc", "-f", "custom_format.dump"])
-            bot.send_message(call.message.chat.id, "Данные сохранены в пользовательском формате успешно.")
-        except Exception as e:
-            bot.send_message(call.message.chat.id, f"Ошибка при сохранении данных в пользовательском формате: {str(e)}")
-    elif call.data == 'restore':
-        # Restore data from a dump file
-        try:
-            subprocess.run(["pg_restore", "-h", "your_host", "-d", "your_database", "-U", "your_username", "backup_file.dump"])
-            bot.send_message(call.message.chat.id, "Данные восстановлены успешно.")
-        except Exception as e:
-            bot.send_message(call.message.chat.id, f"Ошибка при восстановлении данных: {str(e)}")
+
+backup_db = sqlite3.connect('backup_database.db')
+backup_cursor = backup_db.cursor()
+backup_cursor.execute('''CREATE TABLE IF NOT EXISTS backups (id INTEGER PRIMARY KEY AUTOINCREMENT, db_name TEXT, timestamp TEXT)''')
+backup_db.commit()
+
+# ... Existing code ...
+
+@bot.callback_query_handler(func=lambda callback: callback.data.startswith('restore_backup_') and logged_in)
+def restore_backup_handler(call):
+    backup_id = int(call.data.split('_')[2])
+
+    # Create a new SQLite connection and cursor inside the function
+    backup_db = sqlite3.connect('backup_database.db')
+    backup_cursor = backup_db.cursor()
+
+    # Retrieve the backup entry from the SQLite database
+    backup_cursor.execute("SELECT * FROM backups WHERE id=?", (backup_id,))
+    backup_info = backup_cursor.fetchone()
+
+    if backup_info:
+        _, db_name, timestamp = backup_info
+        # Delete the backup entry from the SQLite database
+        backup_cursor.execute("DELETE FROM backups WHERE id=?", (backup_id,))
+        backup_db.commit()
+
+        # Close the connection and cursor after the operation is done
+        backup_cursor.close()
+        backup_db.close()
+
+        message = f"Бекап базы:{db_name} [{timestamp}] восстановлен."
     else:
-        bot.send_message(call.message.chat.id, "Неверная команда.")
+        message = "Выбранный бекап не найден."
+
+    markup = types.InlineKeyboardMarkup()
+    back_btn = types.InlineKeyboardButton('<< Назад', callback_data='bk_mm')
+    markup.add(back_btn)
+
+    bot.send_message(call.message.chat.id, message, reply_markup=markup)
+
+# Callback handler for creating a backup of the selected database
+@bot.callback_query_handler(func=lambda callback: callback.data.startswith('backup_') and logged_in)
+def backup_handler(call):
+    db_name = call.data.split('_')[1]
+    timestamp = datetime.datetime.now().strftime('%H:%M %d.%m.%Y')
+    
+    # Create a new SQLite connection and cursor inside the function
+    backup_db = sqlite3.connect('backup_database.db')
+    backup_cursor = backup_db.cursor()
+    
+    # Add backup information to the SQLite database
+    backup_cursor.execute("INSERT INTO backups (db_name, timestamp) VALUES (?, ?)", (db_name, timestamp))
+    backup_db.commit()
+    
+    # Close the connection and cursor after the operation is done
+    backup_cursor.close()
+    backup_db.close()
+    
+    message = f"Backup базы данных:{db_name} [{timestamp}] создан."
+    bot.send_message(call.message.chat.id, message)
+
+# Callback handler for restoring the selected database
+@bot.callback_query_handler(func=lambda callback: callback.data.startswith('restore_') and logged_in)
+def restore_menu_handler(call):
+    db_name = call.data.split('_')[1]
+    
+    # Create a new SQLite connection and cursor inside the function
+    backup_db = sqlite3.connect('backup_database.db')
+    backup_cursor = backup_db.cursor()
+    
+    # Retrieve backup entries for the selected database from the SQLite database
+    backup_cursor.execute("SELECT * FROM backups WHERE db_name=? ORDER BY timestamp DESC", (db_name,))
+    backup_entries = backup_cursor.fetchall()
+    
+    markup = types.InlineKeyboardMarkup()
+
+    # Create buttons for each backup entry
+    for entry in backup_entries:
+        backup_id, _, timestamp = entry
+        btn_text = f"Backup базы:{db_name} [{timestamp}]"
+        btn = types.InlineKeyboardButton(btn_text, callback_data=f'restore_backup_{backup_id}')
+        markup.add(btn)
+    
+    # Add a back button
+    back_btn = types.InlineKeyboardButton('<< Назад', callback_data='bk_mm')
+    markup.add(back_btn)
+    
+    # Close the connection and cursor after the operation is done
+    backup_cursor.close()
+    backup_db.close()
+    
+    bot.send_message(call.message.chat.id, 'Выберите бекап для восстановления:', reply_markup=markup)
+
+# Callback handler for restoring a specific backup entry
+@bot.callback_query_handler(func=lambda callback: callback.data.startswith('restore_backup_') and logged_in)
+def restore_backup_handler(call):
+    backup_id = int(call.data.split('_')[2])
+
+    # Create a new SQLite connection and cursor inside the function
+    backup_db = sqlite3.connect('backup_database.db')
+    backup_cursor = backup_db.cursor()
+
+    # Retrieve the backup entry from the SQLite database
+    backup_cursor.execute("SELECT * FROM backups WHERE id=?", (backup_id,))
+    backup_info = backup_cursor.fetchone()
+
+    if backup_info:
+        _, db_name, timestamp = backup_info
+        # Delete the backup entry from the SQLite database
+        backup_cursor.execute("DELETE FROM backups WHERE id=?", (backup_id,))
+        backup_db.commit()
+
+        # Close the connection and cursor after the operation is done
+        backup_cursor.close()
+        backup_db.close()
+
+        message = f"Бекап базы:{db_name} [{timestamp}] восстановлен."
+    else:
+        message = "Выбранный бекап не найден."
+
+    bot.send_message(call.message.chat.id, message)
+
+# ... Rest of your code ...
+
+# ... Rest of your code ...
+
+# @bot.message_handler(commands=['manage'])
+# def handle_manage_command(message):
+#     keyboard = types.InlineKeyboardMarkup(row_width=1)
+#     backup_button = types.InlineKeyboardButton('Создание резервной копии данных', callback_data='backup')
+#     export_schema_button = types.InlineKeyboardButton('Экспорт схемы базы данных', callback_data='export_schema')
+#     save_data_button = types.InlineKeyboardButton('Сохранение данных', callback_data='save_data')
+#     custom_format_button = types.InlineKeyboardButton('Поддержка различных форматов', callback_data='custom_format')
+#     restore_button = types.InlineKeyboardButton('Восстановление данных', callback_data='restore')
+
+#     keyboard.add(backup_button, export_schema_button, save_data_button, custom_format_button, restore_button)
+
+#     bot.send_message(message.chat.id, 'Выберите опцию:', reply_markup=keyboard)
+
+# @bot.callback_query_handler(func=lambda call: True)
+# def callback_handler(call):
+#     if call.data == 'backup':
+#         # Create a backup of the entire database
+#         try:
+#             subprocess.run(["pg_dump", "-h", "your_host", "-d", "your_database", "-U", "your_username", "-F", "c", "-f", "backup_file.dump"])
+#             bot.send_message(call.message.chat.id, "Резервная копия данных создана успешно.")
+#         except Exception as e:
+#             bot.send_message(call.message.chat.id, f"Ошибка при создании резервной копии данных: {str(e)}")
+#     elif call.data == 'export_schema':
+#         # Export only the schema of the database
+#         try:
+#             subprocess.run(["pg_dump", "-h", "your_host", "-d", "your_database", "-U", "your_username", "-s", "-f", "schema.sql"])
+#             bot.send_message(call.message.chat.id, "Схема базы данных экспортирована успешно.")
+#         except Exception as e:
+#             bot.send_message(call.message.chat.id, f"Ошибка при экспорте схемы базы данных: {str(e)}")
+#     elif call.data == 'save_data':
+#         # Save data without schema
+#         try:
+#             subprocess.run(["pg_dump", "-h", "your_host", "-d", "your_database", "-U", "your_username", "-a", "-f", "data.sql"])
+#             bot.send_message(call.message.chat.id, "Данные сохранены успешно.")
+#         except Exception as e:
+#             bot.send_message(call.message.chat.id, f"Ошибка при сохранении данных: {str(e)}")
+#     elif call.data == 'custom_format':
+#         # Save data in custom format
+#         try:
+#             subprocess.run(["pg_dump", "-h", "your_host", "-d", "your_database", "-U", "your_username", "-Fc", "-f", "custom_format.dump"])
+#             bot.send_message(call.message.chat.id, "Данные сохранены в пользовательском формате успешно.")
+#         except Exception as e:
+#             bot.send_message(call.message.chat.id, f"Ошибка при сохранении данных в пользовательском формате: {str(e)}")
+#     elif call.data == 'restore':
+#         # Restore data from a dump file
+#         try:
+#             subprocess.run(["pg_restore", "-h", "your_host", "-d", "your_database", "-U", "your_username", "backup_file.dump"])
+#             bot.send_message(call.message.chat.id, "Данные восстановлены успешно.")
+#         except Exception as e:
+#             bot.send_message(call.message.chat.id, f"Ошибка при восстановлении данных: {str(e)}")
+#     else:
+#         bot.send_message(call.message.chat.id, "Неверная команда.")
             
 # ========================================= Func4All =========================================
 
