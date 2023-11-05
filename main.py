@@ -3,28 +3,22 @@ from telebot import types
 import sql_query
 import re
 import psycopg2
-
 import subprocess
 import psutil
 import datetime
 import sqlite3
-
-
 import threading
-
-
 import subprocess
 import os
 import logging
 
 sq = sql_query.QueryTool()
-
 auto_log = 'admin'
 auto_pas = '0000'
 logged_in = False
 to_switch = []
 to_del = []
-
+photo_path = 'monica.jpg'
 bot = telebot.TeleBot('6947924117:AAGFMG2m5LkvTa8s3xyhavT3nWLZBi7jccE')
 
 # ========================================= Начало работы =========================================
@@ -33,10 +27,9 @@ bot = telebot.TeleBot('6947924117:AAGFMG2m5LkvTa8s3xyhavT3nWLZBi7jccE')
 def start_bot(message):
     global to_switch, to_del
     rem_key = types.ReplyKeyboardRemove()
-    bot.send_message(message.from_user.id,
-                     "Приветствую!\nЯ – Ваш персональный помощник для работы с базой данных",
-                     reply_markup=rem_key,
-                     parse_mode='Markdown')
+    with open(photo_path, 'rb') as photo:
+        bot.send_photo(message.chat.id, photo, caption="Приветствую!\nЯ – Ваш персональный помощник для работы с базой данных", reply_markup=rem_key, parse_mode='Markdown')
+
     markup = types.InlineKeyboardMarkup()
     begin_btn = types.InlineKeyboardButton(text='Авторизация', callback_data='begin')
     markup.add(begin_btn)
@@ -153,7 +146,7 @@ connection.close()
 
 @bot.callback_query_handler(func=lambda callback: callback.data.startswith('bk') and logged_in)
 def bk_handler(call):
-    print("Callback handler called!")  # Проверка, был ли обработчик вызван
+    print("ДА работает")  # Проверка, был ли обработчик вызван
     global to_switch
     if call.data == 'bk_mm':
         markup = types.InlineKeyboardMarkup()
@@ -176,7 +169,7 @@ def bk_handler(call):
 
 @bot.callback_query_handler(func=lambda callback: callback.data.startswith('db_') and logged_in)
 def db_handler(call):
-    print("Callback handler called!")  # Проверка, был ли обработчик вызван
+    print("ДА работает")  # Проверка, был ли обработчик вызван
     db_name = call.data.split('_')[1]
     markup = types.InlineKeyboardMarkup()
 
@@ -268,68 +261,50 @@ def timeline_handler(call):
     db_name = call.data.split('_')[1]
     current_time = datetime.datetime.now().strftime("[%d.%m.%Y %H:%M]")
 
-    # Perform a connection check with the database
     try:
-        # Code to perform a connection check with the database
-        # For example, try executing a simple query to the database
-        # If successful, update the timeline log with the current timestamp
-        # For demonstration purposes, assume the connection check is successful
         connection_check_result = "✅ Успешная проверка связи с базой данных."
     except Exception as e:
         connection_check_result = f"❌ Ошибка при проверке связи с базой данных: {str(e)}"
 
-    # Format the timeline log entry
     timeline_entry = f"{'✅ Все работает' if 'Успешная' in connection_check_result else '❌ Проблемы с БД'} {current_time}"
 
-    # Create a new database connection and cursor
+
     conn = sqlite3.connect('timeline_logs.db')
     cursor = conn.cursor()
 
-    # Save the timeline entry to the SQLite database
     chat_id = call.message.chat.id
     cursor.execute("INSERT INTO timeline_logs (chat_id, db_name, log_entry, timestamp) VALUES (?, ?, ?, ?)",
                    (chat_id, db_name, timeline_entry, current_time))
     conn.commit()
 
-    # Retrieve all timeline entries for the specific chat from the database
     cursor.execute("SELECT log_entry FROM timeline_logs WHERE chat_id=? AND db_name=?",
                    (chat_id, db_name))
     timeline_entries = cursor.fetchall()
     timeline_text = "\n".join(entry[0] for entry in timeline_entries)
 
-    # Close the database connection
     conn.close()
 
-    # Send the updated timeline log as a message
     bot.send_message(call.message.chat.id, f"Журнал проверок связи с базой данных {db_name}:\n{timeline_text}")
 
 # =========================================> Перезагруска
 
 def reload_database(db_name):
-    # Code to reload the database
-    # Implement the logic to reload the specified database here
-    # For example, execute checkpoint command and restart the database
     pass
 
 @bot.callback_query_handler(func=lambda callback: callback.data.startswith('reload_db_') and logged_in)
 def reload_db_handler(call):
     db_name = call.data.split('_')[2]
 
-    # Reload the specified database
     reload_database(db_name)
 
-    # Add a message indicating the database was reloaded
     bot.send_message(call.message.chat.id, f"База данных {db_name} была перезагружена.")
 
-    # Add the reload action to the timeline
     current_time = datetime.datetime.now().strftime("[%d.%m.%Y %H:%M]")
     timeline_entry = f"Был перезагружен {current_time}"
 
-    # Create a new database connection and cursor
     conn = sqlite3.connect('timeline_logs.db')
     cursor = conn.cursor()
 
-    # Save the timeline entry to the SQLite database
     chat_id = call.message.chat.id
     cursor.execute("INSERT INTO timeline_logs (chat_id, db_name, log_entry, timestamp) VALUES (?, ?, ?, ?)",
                    (chat_id, db_name, timeline_entry, current_time))
@@ -364,27 +339,21 @@ backup_cursor = backup_db.cursor()
 backup_cursor.execute('''CREATE TABLE IF NOT EXISTS backups (id INTEGER PRIMARY KEY AUTOINCREMENT, db_name TEXT, timestamp TEXT)''')
 backup_db.commit()
 
-# ... Existing code ...
-
 @bot.callback_query_handler(func=lambda callback: callback.data.startswith('restore_backup_') and logged_in)
 def restore_backup_handler(call):
     backup_id = int(call.data.split('_')[2])
 
-    # Create a new SQLite connection and cursor inside the function
     backup_db = sqlite3.connect('backup_database.db')
     backup_cursor = backup_db.cursor()
 
-    # Retrieve the backup entry from the SQLite database
     backup_cursor.execute("SELECT * FROM backups WHERE id=?", (backup_id,))
     backup_info = backup_cursor.fetchone()
 
     if backup_info:
         _, db_name, timestamp = backup_info
-        # Delete the backup entry from the SQLite database
         backup_cursor.execute("DELETE FROM backups WHERE id=?", (backup_id,))
         backup_db.commit()
 
-        # Close the connection and cursor after the operation is done
         backup_cursor.close()
         backup_db.close()
 
@@ -398,79 +367,64 @@ def restore_backup_handler(call):
 
     bot.send_message(call.message.chat.id, message, reply_markup=markup)
 
-# Callback handler for creating a backup of the selected database
 @bot.callback_query_handler(func=lambda callback: callback.data.startswith('backup_') and logged_in)
 def backup_handler(call):
     db_name = call.data.split('_')[1]
     timestamp = datetime.datetime.now().strftime('%H:%M %d.%m.%Y')
     
-    # Create a new SQLite connection and cursor inside the function
     backup_db = sqlite3.connect('backup_database.db')
     backup_cursor = backup_db.cursor()
-    
-    # Add backup information to the SQLite database
+
     backup_cursor.execute("INSERT INTO backups (db_name, timestamp) VALUES (?, ?)", (db_name, timestamp))
     backup_db.commit()
-    
-    # Close the connection and cursor after the operation is done
+
     backup_cursor.close()
     backup_db.close()
     
     message = f"Backup базы данных:{db_name} [{timestamp}] создан."
     bot.send_message(call.message.chat.id, message)
 
-# Callback handler for restoring the selected database
 @bot.callback_query_handler(func=lambda callback: callback.data.startswith('restore_') and logged_in)
 def restore_menu_handler(call):
     db_name = call.data.split('_')[1]
-    
-    # Create a new SQLite connection and cursor inside the function
+
     backup_db = sqlite3.connect('backup_database.db')
     backup_cursor = backup_db.cursor()
     
-    # Retrieve backup entries for the selected database from the SQLite database
     backup_cursor.execute("SELECT * FROM backups WHERE db_name=? ORDER BY timestamp DESC", (db_name,))
     backup_entries = backup_cursor.fetchall()
     
     markup = types.InlineKeyboardMarkup()
 
-    # Create buttons for each backup entry
     for entry in backup_entries:
         backup_id, _, timestamp = entry
         btn_text = f"Backup базы:{db_name} [{timestamp}]"
         btn = types.InlineKeyboardButton(btn_text, callback_data=f'restore_backup_{backup_id}')
         markup.add(btn)
     
-    # Add a back button
     back_btn = types.InlineKeyboardButton('<< Назад', callback_data='bk_mm')
     markup.add(back_btn)
     
-    # Close the connection and cursor after the operation is done
     backup_cursor.close()
     backup_db.close()
     
     bot.send_message(call.message.chat.id, 'Выберите бекап для восстановления:', reply_markup=markup)
 
-# Callback handler for restoring a specific backup entry
 @bot.callback_query_handler(func=lambda callback: callback.data.startswith('restore_backup_') and logged_in)
 def restore_backup_handler(call):
     backup_id = int(call.data.split('_')[2])
 
-    # Create a new SQLite connection and cursor inside the function
     backup_db = sqlite3.connect('backup_database.db')
     backup_cursor = backup_db.cursor()
 
-    # Retrieve the backup entry from the SQLite database
     backup_cursor.execute("SELECT * FROM backups WHERE id=?", (backup_id,))
     backup_info = backup_cursor.fetchone()
 
     if backup_info:
         _, db_name, timestamp = backup_info
-        # Delete the backup entry from the SQLite database
         backup_cursor.execute("DELETE FROM backups WHERE id=?", (backup_id,))
         backup_db.commit()
 
-        # Close the connection and cursor after the operation is done
         backup_cursor.close()
         backup_db.close()
 
@@ -480,7 +434,6 @@ def restore_backup_handler(call):
 
     bot.send_message(call.message.chat.id, message)
 
-# ... Rest of your code ...
 
 # ... Rest of your code ...
 

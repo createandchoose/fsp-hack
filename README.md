@@ -5,15 +5,14 @@
 
 ## 🖥️ Команда
 
-<table align="center">
-  <tr>
-    <td align="center"><a href="https://github.com/Foxs-m"><img src="https://avatars.githubusercontent.com/u/91510758?v=4" width="100px;" alt=""/><br /><sub><b>Айсен Слепцов</b></sub></a><br />🧑‍💻Manager</td>
-    <td align="center"><a href="https://github.com"><img src="https://avatars.githubusercontent.com/u/4111118?v=4" width="100px;" alt=""/><br /><sub><b>Эрхан Семенов</b></sub></a><br />🎴Design</td>
-    <td align="center"><a href="https://github.com/ArtemBoytunov"><img src="https://avatars.githubusercontent.com/u/64827737?v=4" width="100px;" alt="이미지"/><br /><sub><b>Владимир Афанасьев</b></sub></a><br />🔥Сисадмин</td>
-    <td align="center"><a href="https://github.com/createandchoose"><img src="https://avatars.githubusercontent.com/u/42153584?v=4" width="100px;" alt="이미지"/><br /><sub><b>Максим Харитонов</b></sub></a><br />🧑‍💻Developer</td>
-    <td align="center"><a href="https://github.com/createandchoose"><img src="https://avatars.githubusercontent.com/u/42153584?v=4" width="100px;" alt="이미지"/><br /><sub><b>Айтал Попов</b></sub></a><br />🦄FullStack-Developer</td>
-  </tr>
-</table>
+| Имя             | Фамилия       |
+|------------------|--------------|
+| Айсен           | Слепцов      |
+| Эрхан            | Семенов      |
+| Алексей         | Алексей      |
+| Максим         | Харитонов    |
+| Айтал           | Попов        |
+
 
 # **Документация к Telegram-боту для работы с базой данных**
 
@@ -75,3 +74,12 @@
 
 ---
 
+## Устновка
+
+```
+pip install -r requirements.txt
+```
+
+```
+py main.py
+```
